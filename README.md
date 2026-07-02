@@ -3,7 +3,7 @@
 A feedforward neural network built from first principles in Python using custom `Matrix`, `Vector`, `Layer`, and `LayerConnection` classes. No PyTorch, TensorFlow, or scikit-learn is used for the core model — only plain Python, math, and linear algebra.
 
 **Author:** [Scott Kennedy](https://github.com/scottsplays)  
-**Resume project:** Object-oriented neural network framework for ML/AI engineering portfolio work
+**Purpose:** Educational implementation of a feedforward neural network demonstrating manual forward propagation, backpropagation, and gradient descent.
 
 ---
 
