@@ -144,23 +144,6 @@ The presentation version uses full-batch gradient descent: all training samples 
 
 ---
 
-## Publishing to GitHub
-
-From inside this folder:
-
-```bash
-git init
-git add .
-git commit -m "Add neural network framework from scratch"
-git branch -M main
-git remote add origin https://github.com/yungdennek/neural-network-from-scratch.git
-git push -u origin main
-```
-
-Replace the remote URL with your repository name.
-
----
-
 ## Possible extensions
 
 - Mini-batch or stochastic gradient descent
