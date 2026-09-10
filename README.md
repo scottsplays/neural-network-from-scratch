@@ -19,6 +19,10 @@ NeuralLab wraps the newer from-scratch classification stack in a browser interfa
 ### Features
 
 - Train the custom network on built-in Iris or Wine classification datasets
+- **Upload your own CSV classification dataset**
+- Choose the target column and numeric input features interactively
+- Automatically map text or numeric class labels to output neurons
+- Validate missing values, non-finite inputs, class counts, and train/test split feasibility before training
 - Configure hidden-layer size, epochs, learning rate, split size, and random seed
 - Plot cross-entropy training loss from `Model.train()`
 - Display train/test accuracy and a confusion matrix
@@ -42,6 +46,25 @@ streamlit run app.py
 
 Then choose an experiment in the sidebar and click **Train from scratch**.
 
+### Custom CSV format
+
+Choose **Upload CSV** in the dataset selector. NeuralLab will preview the file and let you select:
+
+1. A target column for classification
+2. One or more numeric feature columns
+
+For example:
+
+```csv
+height,weight,wingspan,species
+14.2,2.8,22.1,Robin
+11.7,1.9,18.4,Finch
+16.0,3.2,24.5,Robin
+12.1,2.0,19.0,Finch
+```
+
+The current CSV workflow is intentionally focused on **classification**. Input features must be numeric, while the target labels may be text or numeric. NeuralLab standardizes the selected features using statistics fitted only on the training split, then dynamically creates a model with the required number of input and output neurons.
+
 ---
 
 ## NeuralLab architecture
@@ -62,7 +85,7 @@ Softmax
 Class probabilities
 ```
 
-The hidden width is configurable in the Streamlit UI.
+The input width is determined by the selected dataset/features, the hidden width is configurable in the Streamlit UI, and the output width is determined by the number of target classes.
 
 For each dense layer, bias is represented by appending a constant `1` to the input vector:
 
@@ -97,10 +120,10 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for additional implementation notes.
 | `model.py` | Three-layer classifier, softmax, training loop, and online SGD |
 | `visualization_helpers.py` | Safe display conversion plus architecture/activation figures |
 | `backprop_inspector.py` | Inspection-only backpropagation snapshots |
-| `app.py` | Streamlit experiment and visualization interface |
+| `app.py` | Streamlit datasets, CSV upload, training, metrics, and visualization interface |
 | `visualize.py` | Basic standalone plotting helper |
 
-The Streamlit/scikit-learn code is used for UI, datasets, preprocessing, splitting, metrics, and plotting. The neural-network forward/backward computations remain in the custom framework.
+The Streamlit/scikit-learn code is used for UI, built-in datasets, preprocessing, splitting, metrics, and plotting. The neural-network forward/backward computations remain in the custom framework.
 
 ---
 
@@ -157,7 +180,8 @@ These files document the evolution of the project and include previous regressio
 - Mini-batch training
 - Additional activation and optimizer choices in NeuralLab
 - Side-by-side PyTorch numerical/performance comparison
-- More datasets and user-uploaded tabular data
+- Categorical feature preprocessing for uploaded CSVs
+- Regression mode for custom datasets
 - Interactive neuron/connection highlighting in the architecture view
 
 ---
