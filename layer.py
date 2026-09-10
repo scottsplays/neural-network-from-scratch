@@ -1,125 +1,96 @@
-"""
-Layer abstractions for single samples, batches, and training history.
-
-Layer       — one sample (a vector of neurons)
-LayerMatrix — a batch of samples processed in parallel
-LayerTensor — ordered list of LayerMatrix snapshots during training
-"""
-
-from vector import Vector
-from matrix import Matrix, product, col_as_vector
-from neuron import Neuron
-
+import mathematics
+from tensor import Vector, Matrix
 
 class Layer:
-    """A single input or hidden representation (one sample)."""
 
-    def __init__(self, neurons=None):
-        if neurons is None:
-            neurons = []
-        if type(neurons) == int:
-            self.neurons = [Neuron() for _ in range(neurons)]
-            self.n = neurons
-        else:
-            self.neurons = neurons
-            self.n = len(neurons)
+    def __init__(self, inp = None):
+        if isinstance(inp, Layer):
+            self.neurons = inp.neurons
+            return
+        if isinstance(inp, Matrix):
+            inp = inp.flatten()
+        if isinstance(inp, float):
+            inp = [inp]
+        self.neurons = inp if isinstance(inp, Vector) else Vector(inp)
 
-    def get_copy(self):
-        return Layer(self.neurons)
+    def __str__(self):
+        return str(self.neurons)
 
-    def apply(self, function):
-        for neuron in self.neurons:
-            neuron.apply(function)
+    def __add__(self, l):
+        return Layer(self.neurons + l.neurons)
 
-    def as_vector(self):
-        return Vector(self.get_values())
+    def __sub__(self, l):
+        return Layer(self.neurons - l.neurons)
 
-    def bias(self):
-        self.neurons.append(Neuron(1))
-        return self
+    def __mul__(self, l):
+        mult = l.neurons if isinstance(l, Layer) else l
+        return Layer(self.neurons * mult)
 
-    def get_values(self):
-        return [neuron.get_value() for neuron in self.neurons]
+    def __rmul__(self, l):
+        return self * l
 
-    def next_layer(self, connection, pre_activations=None):
-        weights = connection.get_weights()
-        activation = connection.get_activation()
+    def __matmul__(self, M):
+        mult = Matrix([M.neurons]) if isinstance(M, Layer) else M
+        return self.neurons @ mult
 
-        # Affine step: [features, 1] @ weights
-        values = self.as_vector().get_copy()
-        values.bias()
-        prod = product(values, weights)
-        predictions = col_as_vector(prod)
+    def as_list(self):
+        return self.neurons.vals
 
-        next_layer = vector_to_layer(predictions)
+    def to_list(self):
+        """Return detached activation values using the Vector conversion API."""
+        return self.neurons.to_list()
 
-        # Store pre-activation values for the backward pass.
-        if pre_activations is not None:
-            pre_activations.append(next_layer)
+    def copy(self):
+        return Layer(self.neurons.copy())
 
-        next_layer.apply(activation)
-        return next_layer
+    def activation(self, function):
+        temp = []
+        for neuron in self.neurons.vals:
+            temp.append(function(neuron))
+        return Layer(temp)
 
-
-class LayerMatrix:
-    """Batch of layers — one layer (sample) per row in the input matrix."""
-
-    def __init__(self, layers=None):
-        self.layers = layers if layers is not None else []
-
-    def get_copy(self):
-        return LayerMatrix(self.layers)
-
-    def apply(self, function):
-        for layer in self.layers:
-            layer.apply(function)
+    @property
+    def shape(self):
+        return self.neurons.shape
 
     def bias(self):
-        for layer in self.layers:
-            layer.bias()
-        return self
+        v = self.neurons.copy()
+        v.append(1)
+        return Layer(v)
 
-    def as_matrix(self):
-        return Matrix([layer.as_vector() for layer in self.layers])
+    def forward(self, weight):
+        W = weight.weight_matrix
+        activation = weight.activation_function
+        v = self.neurons
+        x = v.copy()
+        if(weight.bias):
+            v = v.bias()
+        prod = v @ W
+        prod = Layer(prod)
+        z = prod.copy()
+        y = prod.activation(activation)
+        weight.save_layers(x, z, y)
+        return y
 
-    def next_layer(self, connection, pre_activations=None):
-        weights = connection.get_weights()
-        activation = connection.get_activation()
+class Weight:
 
-        values = self.as_matrix().get_copy()
-        values.bias()
+    def __init__(self, n, m, activation_function = mathematics.linear, bias = True):
+        if bias:
+            n += 1
+        self.weight_matrix = Matrix(n, m)
+        self.activation_function = activation_function
+        self.bias = bias
 
-        # Batch forward pass: (samples x features+bias) @ (features+bias x outputs)
-        predictions = product(values, weights)
-        next_layer = matrix_to_layer_matrix(predictions)
+    def save_layers(self, x, z, y):
+        self.x = x
+        self.xb = x.bias()
+        self.z = z
+        self.y = y
 
-        if pre_activations is not None:
-            pre_activations.append(next_layer)
-
-        next_layer.apply(activation)
-        return next_layer
-
-
-class LayerTensor:
-    """Container for layer snapshots collected during forward propagation."""
-
-    def __init__(self, matrices=None):
-        self.matrices = matrices if matrices is not None else []
-
-    def append(self, matrix):
-        self.matrices.append(matrix)
-
-    def get_matrix(self, i):
-        return self.matrices[i]
-
-    def reverse(self):
-        self.matrices = self.matrices[::-1]
-        return self
-
-
-def vector_to_layer(vector):
-    return Layer([Neuron(value) for value in vector.as_list()])
-
-
-def matrix_to_layer_matrix(matrix):
-    return LayerMatrix([vector_to_layer(row) for row in matrix.as_lists()])
+    def backward(self, dy, lr):
+        d_activation = mathematics.derivative(self.activation_function)
+        dz = self.z.activation(d_activation) * dy
+        dx = (dz @ self.weight_matrix.transpose()).unbias()
+        dW = self.xb.transpose() @ Matrix([dz.neurons])
+        self.weight_matrix = self.weight_matrix - lr * dW
+        return Layer(dx)

@@ -1,74 +1,121 @@
-"""
-Activation functions and their derivatives for forward/backward passes.
+import numpy as np
 
-Each activation has a matching derivative used during backpropagation.
-The derivative() helper maps an activation function to its gradient rule.
-"""
+class Variable:
 
-import math
-import random
+    def __init__(self, value = None):
+        self.value = value
 
+    def __str__(self):
+        return str(self.value)
 
-def squared(x):
-    return x ** 2
+    def __add__(self, x):
+        return Variable(self.value + x.value)
 
+    def __sub__(self, x):
+        return Variable(self.value - x.value)
 
-def sigmoid(x):
-    """Maps any real value to the open interval (0, 1)."""
-    return 1 / (1 + math.exp(-1 * x))
+    def __mul__(self, x):
+        return Variable(self.value * x.value)
 
+    def __eq__(self, v):
+        self.value = v
 
-def dsigmoid(x):
-    """Derivative of sigmoid with respect to pre-activation."""
-    return sigmoid(x) * (1 - sigmoid(x))
+class Expression:
 
+    def __init__(self, exp):
+        self.str = exp
+        self.exp = self.parser(exp)
+        self.variables = []
 
-def random_number(a=0, b=1):
-    return a + (b - a) * random.random()
+    def parser(self, s):
+        s = s.replace(" ", "")
+        operations = ['(', ')', '^', '*', '/', '+', '-']
+        for c in s:
+            if(int(c)):
+                print("Yes")
 
+    def __str__(self):
+        return
 
-def tanh(x):
-    """Maps any real value to the open interval (-1, 1)."""
-    exp_p = math.exp(x)
-    exp_m = 1 / exp_p
-    return (exp_p - exp_m) / (exp_p + exp_m)
-
-
-def dtanh(x):
-    return 1 - tanh(x) ** 2
-
+def random():
+    return np.random.random()
 
 def random_list(n):
-    return [random_number() for _ in range(n)]
+    temp = []
+    for _ in range(n):
+        temp.append(random())
+    return temp
 
-
-def RELU(x):
-    """Rectified linear unit — common default for hidden layers."""
-    return x if x > 0 else 0
-
-
-def dRELU(x):
-    return 1 if x > 0 else 0
-
+def random_ints(n, a, b):
+    temp = []
+    for _ in range(n):
+        r = random()
+        temp.append(int(a + (b - a + 1) * r))
+    return temp
 
 def linear(x):
-    """Identity activation — typical choice for regression outputs."""
     return x
 
-
 def one(x):
-    """Derivative of the linear activation."""
     return 1
 
+def exp(x):
+    return np.exp(x)
+
+def relu(x):
+    return  x / 2 + np.abs(x) / 2
+
+def drelu(x):
+    return 0 if x < 0 else 1
 
 def derivative(function):
-    """Return the derivative function that matches a given activation."""
-    if function == RELU:
-        return dRELU
-    if function == sigmoid:
-        return dsigmoid
-    if function == tanh:
-        return dtanh
-    if function == linear:
+    if(function == linear):
         return one
-    return one
+    if(function == relu):
+        return drelu
+
+def MSELoss(y_actual, y_pred):
+    sum = 0
+    n = len(y_actual)
+    for i, val in enumerate(y_actual):
+        sum += (val - y_pred[i]) ** 2
+    return sum / n
+
+def dMSELoss(y_actual, y_pred):
+    temp = []
+    n = len(y_actual)
+    for i, val in enumerate(y_actual):
+        temp.append(2 * (val - y_pred[i]) / n)
+    return temp
+
+def CrossEntropyLoss(y_actual, y_pred):
+    sum = 0
+    for i, val in enumerate(y_actual):
+        sum -= val * np.log(max(y_pred[i], 1e-8))
+    return sum
+
+def dCrossEntropyLoss(y_actual, y_pred):
+    temp = []
+    for i, val in enumerate(y_actual):
+        temp.append(y_pred[i] - val)
+    return temp
+
+def softmax_gradient(y_actual, y_pred):
+    return [actual - pred for actual, pred in zip(y_actual, y_pred)]
+
+class Loss:
+
+    def __init__(self, x, y, loss_type = MSELoss):
+        self.loss_type = loss_type
+        self.x = x.neurons.vals
+        self.y = y.neurons.vals
+
+    @property
+    def value(self):
+        return self.loss_type(self.x, self.y)
+
+    def grad_layer(self):
+        if(self.loss_type == MSELoss):
+            return dMSELoss(self.x, self.y)
+        if(self.loss_type == CrossEntropyLoss):
+            return dCrossEntropyLoss(self.x, self.y)
